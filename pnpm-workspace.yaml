@@ -4,5 +4,10 @@
 packages:
   - "packages/*"
   - "apps/*"
+# 패키지 설치 스크립트(postinstall) 실행 허락. 셋 다 스크립트 없이도 돌아가는 것을 확인했으므로 실행하지 않는다
+#   esbuild (tsx 가 씀): 운영체제별 실행 파일이 별도 패키지로 이미 설치된다
+#   onnxruntime-node, protobufjs (임베딩 모델이 씀): 미리 만들어진 실행 파일이 패키지에 들어 있다
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: false
+  onnxruntime-node: false
+  protobufjs: false

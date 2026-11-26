@@ -12,6 +12,8 @@ CREATE EXTENSION IF NOT EXISTS postgis;   -- 위치: 좌표 자료형, 반경 �
 CREATE EXTENSION IF NOT EXISTS vector;    -- 의미 검색: 임베딩 자료형 (5단계에서 열 추가)
 CREATE EXTENSION IF NOT EXISTS pg_trgm;   -- 상호 검색: 글자 3개 묶음(trigram) 색인. 결정 28번
 
+DROP TABLE IF EXISTS store_texts;
+DROP TABLE IF EXISTS tour_details;
 DROP TABLE IF EXISTS certs;
 DROP TABLE IF EXISTS stores;
 
@@ -79,4 +81,25 @@ CREATE TABLE certs (
     match_stage    smallint NOT NULL,       -- 1 = 상가에 붙음 (match_all.py), 2 = 물려받기·새 가게 (match_stage2.py)
     match_reason   text NOT NULL,           -- 1단계: v1 판정 이유 (same, near_food …) / 2단계: inherit_license, new_group …
     match_found_by text                     -- 후보를 찾은 건물 키 (road / jibun)
+);
+
+-- 관광공사 상세 (소개글·메뉴·주차·영업시간). 결정 24·33번. 매일 조금씩 늘어난다 (fetch_tour_detail.py)
+CREATE TABLE tour_details (
+    cert_id     text PRIMARY KEY REFERENCES certs,
+    store_id    text NOT NULL REFERENCES stores,   -- 이 관광공사 인증이 붙은 가게 (certs 에서 옮겨 적어 둔다)
+    overview    text,                       -- 소개글. 의미 검색 문서
+    first_menu  text,
+    menus       text,
+    parking     text,
+    open_time   text,
+    rest_day    text,
+    license_no  text
+);
+
+-- 의미 검색용 문서: 가게 1곳 = 1행. 지금은 관광공사 소개글이 있는 가게만 (결정 24번)
+-- embedding 은 db:embed (packages/db/src/embed.ts) 가 채운다. 모델은 packages/embed 와 같아야 한다 (384차원)
+CREATE TABLE store_texts (
+    store_id    text PRIMARY KEY REFERENCES stores,
+    text        text NOT NULL,              -- 임베딩한 글자 그대로 (가게 이름 + 메뉴 + 소개글)
+    embedding   vector(384)
 );

@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "db:load": "pnpm --filter @restaurant-map/db load",
+    "db:embed": "pnpm --filter @restaurant-map/db embed",
     "dev:server": "pnpm --filter @restaurant-map/server dev",
     "dev:web": "pnpm --filter @restaurant-map/web dev"
   }

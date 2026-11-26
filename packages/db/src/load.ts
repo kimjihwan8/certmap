@@ -1,7 +1,8 @@
 /**
- * CSV 5개(파이썬 결과물) → Postgres 서비스용 표. 결정 일지 12·20·21·25번.
+ * CSV 6개(파이썬 결과물) → Postgres 서비스용 표. 결정 일지 12·20·21·25·33번.
  *
- * 사용: pnpm db:load        (먼저 docker compose up -d, 파이썬 match_all.py → match_stage2.py 까지 돌려둘 것)
+ * 사용: pnpm db:load        (먼저 docker compose up -d, 파이썬 match_all.py → match_stage2.py → prep_tour_detail.py 까지 돌려둘 것)
+ *       pnpm db:embed       (그다음 의미 검색 벡터 채우기. db:load 가 표를 새로 만들므로 매번 다시 돌린다)
  *
  * 흐름 (전부 트랜잭션 하나 — 중간에 실패하면 전부 취소되고 기존 DB가 그대로 남는다):
  *   1. schema.sql     서비스용 표를 지우고 새로 만든다
@@ -33,6 +34,7 @@ const STAGING = {
   matches: "matches.csv",
   cert_store: "cert_store.csv",
   new_stores: "new_stores.csv",
+  tour_detail: "tour_detail.csv",
 } as const;
 
 /** CSV 첫 줄(열 이름)만 읽는다. staging 표의 열을 CSV 에 맞춰 만들려고. */

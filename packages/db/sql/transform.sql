@@ -62,6 +62,20 @@ UPDATE stores s SET
 FROM (SELECT store_id, array_agg(DISTINCT source) AS sources FROM certs GROUP BY store_id) a
 WHERE s.store_id = a.store_id;
 
+-- 3-2. 관광공사 상세: 인증 표에 있는 관광공사 인증만 (10/22 목록 뒤에 생긴 가게는 인증 표에 아직 없다)
+INSERT INTO tour_details (cert_id, store_id, overview, first_menu, menus, parking, open_time, rest_day, license_no)
+SELECT t.cert_id, c.store_id, t.overview, t.first_menu, t.menus, t.parking, t.open_time, t.rest_day, t.license_no
+FROM staging.tour_detail t JOIN certs c USING (cert_id);
+
+-- 3-3. 의미 검색 문서: 가게마다 '이름. 메뉴. 소개글' 한 덩어리.
+--      메뉴를 넣는 이유: "물회", "어탕국수"처럼 메뉴로 찾을 때도 걸리게. 한 가게에 관광공사 인증이 둘이면 이어 붙인다
+INSERT INTO store_texts (store_id, text)
+SELECT s.store_id,
+       s.name || '. ' || string_agg(concat_ws('. ', nullif(concat_ws(', ', t.first_menu, t.menus), ''), t.overview), ' ')
+FROM tour_details t JOIN stores s USING (store_id)
+WHERE t.overview IS NOT NULL
+GROUP BY s.store_id, s.name;
+
 -- 4. 색인: 데이터를 다 넣은 뒤에 만든다 (넣기 전에 만들면 행마다 색인을 고쳐서 느리다)
 CREATE INDEX stores_geom_idx ON stores USING gist (geom);           -- "이 좌표 반경 1km 안" 을 빠르게
 -- 벡터 타일용: 인증 가게만 담은 부분 색인 (기본 지도는 인증 가게만 그린다. 결정 27번)

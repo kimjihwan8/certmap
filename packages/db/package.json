@@ -4,9 +4,12 @@
   "type": "module",
   "scripts": {
     "load": "tsx src/load.ts",
+    "embed": "tsx src/embed.ts",
+    "sem-pool": "tsx src/sem_pool.ts",
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@restaurant-map/embed": "workspace:*",
     "pg": "^8.23.1",
     "pg-copy-streams": "^7.0.0"
   },
