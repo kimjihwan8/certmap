@@ -3,7 +3,7 @@
  *
  * 확대 수준에 따라 두 가지로 준다 (전국이 보일 때 가게를 하나하나 주면 타일 한 장이 2.6MB 가 된다):
  *   z ≤ GRID_MAX_ZOOM  'clusters' 층: 타일을 8×8 격자로 나눠 칸마다 점 하나 + 가게 수(n)
- *   z >  GRID_MAX_ZOOM  'stores' 층:   가게 하나하나 + 지도에 표시할 속성
+ *   z >  GRID_MAX_ZOOM  'stores' 층:   가게 점. 같은 좌표(같은 건물)의 가게는 점 하나 + 개수(n)
  *
  * 측정 (대전역 타일, results/tiles.txt 참고):
  *   z7  하나하나 2.6MB·106ms → 격자 11KB·32ms
@@ -17,15 +17,23 @@ export const GRID_MAX_ZOOM = 12;
 const GRID_CELLS = 8;
 const WORLD_ORIGIN = -20037508.342789244;    // 웹 메르카토르 좌표계의 왼쪽 아래 끝
 
-// 가게 하나하나. ST_AsMVTGeom 이 좌표를 타일 안 0~4096 정수 격자로 바꾸고, 타일 밖은 잘라낸다.
+// 가게 점. ST_AsMVTGeom 이 좌표를 타일 안 0~4096 정수 격자로 바꾸고, 타일 밖은 잘라낸다.
 // buffer 64: 타일 경계에 걸친 점의 원이 잘려 보이지 않도록 경계 바깥 조금까지 포함한다.
+//
+// 같은 좌표의 가게는 점 하나로 묶는다 (결정 29번). 상가 좌표는 건물 단위라 인증 가게의 27%가 다른 가게와 좌표가 같다.
+//   DISTINCT ON (좌표): 좌표마다 한 줄만 남긴다. 실린 목록이 많은 가게가 대표가 된다 (LX 를 앞세우지 않는다, 결정 32번)
+//   count(*) OVER (좌표): 그 좌표에 겹친 가게 수 (n). 화면은 n > 1 이면 '대표 외 n-1곳' 으로 보여준다
 const STORES_SQL = `
   SELECT ST_AsMVT(t, 'stores', 4096, 'geom') AS tile FROM (
-    SELECT ST_AsMVTGeom(s.geom_3857, b.env, 4096, 64, true) AS geom,
-           s.store_id AS id, s.name, s.cert_count,
-           s.mobum, s.good_price, s.baengnyeon, s.tour, s.hygiene, s.ansim, s.lx
-    FROM stores s, (SELECT ST_TileEnvelope($1, $2, $3) AS env) b
-    WHERE s.cert_count > 0 AND s.geom_3857 && ST_Expand(b.env, (ST_XMax(b.env) - ST_XMin(b.env)) * 64 / 4096)
+    SELECT ST_AsMVTGeom(g.geom_3857, b.env, 4096, 64, true) AS geom,
+           g.store_id AS id, g.name, g.cert_count, g.lx, g.n
+    FROM (
+      SELECT DISTINCT ON (s.geom_3857) s.geom_3857, s.store_id, s.name, s.cert_count, s.lx,
+             (count(*) OVER (PARTITION BY s.geom_3857))::int AS n
+      FROM stores s, (SELECT ST_TileEnvelope($1, $2, $3) AS env) e
+      WHERE s.cert_count > 0 AND s.geom_3857 && ST_Expand(e.env, (ST_XMax(e.env) - ST_XMin(e.env)) * 64 / 4096)
+      ORDER BY s.geom_3857, s.cert_count DESC, s.store_id
+    ) g, (SELECT ST_TileEnvelope($1, $2, $3) AS env) b
   ) t`;
 
 // 격자로 묶기. ST_SnapToGrid 로 점을 칸에 떨어뜨리고, 같은 칸끼리 GROUP BY 해서 가운데 점과 개수를 낸다.

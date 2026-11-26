@@ -14,8 +14,25 @@ export interface StoreDetail {
   lon: number;
   coordSource: string;              // 좌표 출처 (sangga / building / source …)
   certCount: number;
+  buildingCount: number;            // 같은 좌표(같은 건물)에 있는 인증 가게 수, 이 가게 포함. 2 이상이면 화면이 목록 버튼을 띄운다
   certs: Cert[];
 }
+
+/** 건물 목록의 한 줄 */
+export interface BuildingStore {
+  storeId: string;
+  name: string;
+  branch: string | null;
+  category: string | null;
+  floor: string | null;
+  certCount: number;
+  lx: boolean;
+  sources: string[];                // 붙은 인증 원본 이름들 ('모범음식점' …)
+}
+
+// 같은 좌표 찾기: 좌표가 완전히 같은 가게끼리 묶는다(타일과 같은 기준).
+// '=' 대신 0.5m 상자(&&)로 찾는 이유: && 는 위치 색인을 쓰고, = 는 못 쓴다
+const SAME_SPOT = `s.geom_3857 && ST_Expand((SELECT geom_3857 FROM stores WHERE store_id = $1), 0.5)`;
 
 export interface Cert {
   source: string;                   // '모범음식점' 등
@@ -43,13 +60,34 @@ export async function getStore(storeId: string): Promise<StoreDetail | null> {
      FROM certs WHERE store_id = $1 ORDER BY source`,
     [storeId],
   );
+  const building = await pool.query(
+    `SELECT count(*)::int AS n FROM stores s WHERE ${SAME_SPOT} AND s.cert_count > 0`,
+    [storeId],
+  );
   return {
     storeId: s.store_id, origin: s.origin, name: s.name, branch: s.branch, category: s.cat_small,
     roadKey: s.road_key, floor: s.floor, lat: s.lat, lon: s.lon, coordSource: s.coord_source,
     certCount: s.cert_count,
+    buildingCount: building.rows[0].n,
     certs: certs.rows.map((c) => ({
       source: c.source, name: c.name, addr: c.addr, menu: c.menu,
       certDate: c.cert_date, validTo: c.valid_to, sinceYear: c.since_year,
     })),
   };
+}
+
+/** 이 가게와 같은 좌표(같은 건물)에 있는 인증 가게들. 실린 목록 수 → 이름 순. */
+export async function getBuilding(storeId: string): Promise<BuildingStore[]> {
+  const { rows } = await pool.query(
+    `SELECT s.store_id, s.name, s.branch, s.cat_small, s.floor, s.cert_count, s.lx,
+            array(SELECT DISTINCT source FROM certs c WHERE c.store_id = s.store_id ORDER BY 1) AS sources
+     FROM stores s
+     WHERE ${SAME_SPOT} AND s.cert_count > 0
+     ORDER BY s.cert_count DESC, s.name`,
+    [storeId],
+  );
+  return rows.map((r) => ({
+    storeId: r.store_id, name: r.name, branch: r.branch, category: r.cat_small, floor: r.floor,
+    certCount: r.cert_count, lx: r.lx, sources: r.sources,
+  }));
 }
