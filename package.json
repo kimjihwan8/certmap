@@ -1,0 +1,9 @@
+{
+  "name": "restaurant-map",
+  "private": true,
+  "scripts": {
+    "db:load": "pnpm --filter @restaurant-map/db load",
+    "dev:server": "pnpm --filter @restaurant-map/server dev",
+    "dev:web": "pnpm --filter @restaurant-map/web dev"
+  }
+}

@@ -1,0 +1,8 @@
+# pnpm 모노레포: 아래 폴더 안의 패키지들을 한 저장소에서 같이 관리한다. 결정 일지 21번.
+#   packages/*  여러 곳에서 쓰는 코드 (db: DB 구조·적재)
+#   apps/*      실행되는 프로그램 (나중에: server, web)
+packages:
+  - "packages/*"
+  - "apps/*"
+allowBuilds:
+  esbuild: set this to true or false

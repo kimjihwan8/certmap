@@ -1,0 +1,20 @@
+{
+  "name": "@restaurant-map/db",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "load": "tsx src/load.ts",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "pg": "^8.23.1",
+    "pg-copy-streams": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.7",
+    "@types/pg": "^8.23.1",
+    "@types/pg-copy-streams": "^1.2.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
