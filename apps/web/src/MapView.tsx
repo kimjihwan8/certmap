@@ -18,11 +18,9 @@ const GRID_MAX_ZOOM = 12;
 const START = { center: [127.4342, 36.3324] as [number, number], zoom: 14 };
 const FONT = ["Noto Sans Regular"];
 
-// 시스템이 다크 모드면 바탕 지도도 어둡게 (사이드바만 어둡고 지도는 밝으면 따로 논다)
-const DARK = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-const THEME = DARK
-  ? { basemap: "https://tiles.openfreemap.org/styles/dark", dots: ["#7fb0ff", "#3d82f6", "#1d4ed8"], text: "#e5e7eb", halo: "#111827", ring: "#ffffff" }
-  : { basemap: "https://tiles.openfreemap.org/styles/positron", dots: ["#93b8f5", "#3d7be0", "#1e3a8a"], text: "#1f2937", halo: "#ffffff", ring: "#ffffff" };
+// 바탕 지도는 항상 밝은 positron (OSM 기반, 무료·키 없음). 흐린 색이라 우리 점이 잘 보인다.
+// 예전에는 시스템이 다크 모드면 어두운 바탕을 썼는데, 어두운 바탕에 파란 점이 빽빽하면 눈이 아프다 (사용자 지적, 결정 36번)
+const THEME = { basemap: "https://tiles.openfreemap.org/styles/positron", dots: ["#93b8f5", "#3d7be0", "#1e3a8a"], text: "#1f2937", halo: "#ffffff", ring: "#ffffff" };
 
 export interface MapResult {
   storeId: string;
