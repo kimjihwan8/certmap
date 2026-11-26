@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  관광공사 상세 매일 동기화 (결정 일지 26번). macOS launchd 예약 실행 설정.
+  매일 09:00 에 fetch_tour_detail.py 를 돌린다. 그 시간에 맥이 잠자고 있으면 깨어날 때 돈다.
+
+  설치:  cp ops/kr.restaurant-map.tour-detail.plist ~/Library/LaunchAgents/
+         launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/kr.restaurant-map.tour-detail.plist
+  끄기:  launchctl bootout gui/$(id -u)/kr.restaurant-map.tour-detail
+  지금 한 번 돌리기: launchctl kickstart gui/$(id -u)/kr.restaurant-map.tour-detail
+  로그:  logs/tour_detail.log
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>kr.restaurant-map.tour-detail</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/miniconda3/bin/python3</string>
+        <string>scripts/fetch_tour_detail.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/kimjihwan/restaurant-map</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/kimjihwan/restaurant-map/logs/tour_detail.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/kimjihwan/restaurant-map/logs/tour_detail.log</string>
+</dict>
+</plist>
