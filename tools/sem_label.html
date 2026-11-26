@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>의미 검색 판정</title>
+<style>
+  /* 색은 토큰으로만. 어두운 모드는 토큰 값만 바꾼다 */
+  :root { --bg: #f7f8fa; --card: #fff; --text: #111827; --muted: #6b7280; --line: #e5e7eb;
+          --yes: #059669; --no: #dc2626; --unsure: #b45309; --accent: #2563eb; color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0f1218; --card: #161a22; --text: #e8eaee; --muted: #9aa3b2; --line: #262c38;
+            --yes: #34d399; --no: #f87171; --unsure: #f0b35a; --accent: #6ea0ff; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  .bar { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 13px; }
+  .progress { height: 6px; margin: 8px 0 20px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .progress i { display: block; height: 100%; background: var(--accent); }
+  .query { font-size: 26px; font-weight: 800; margin: 0 0 4px; }
+  .kind { color: var(--muted); font-size: 13px; }
+  .guide { margin: 10px 0 18px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .card { padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+  .name { font-size: 18px; font-weight: 700; }
+  .sgg { color: var(--muted); font-size: 13px; margin-left: 6px; }
+  .text { margin-top: 10px; line-height: 1.75; font-size: 15px; white-space: pre-wrap; }
+  .buttons { display: flex; gap: 8px; margin-top: 16px; }
+  .buttons button { flex: 1; height: 48px; border: 2px solid var(--line); border-radius: 10px; background: var(--card);
+                    color: var(--text); font-size: 15px; font-weight: 700; cursor: pointer; }
+  .buttons button.on[data-v="1"] { border-color: var(--yes); color: var(--yes); }
+  .buttons button.on[data-v="0"] { border-color: var(--no); color: var(--no); }
+  .buttons button.on[data-v="U"] { border-color: var(--unsure); color: var(--unsure); }
+  kbd { padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; font-size: 12px; }
+  .nav { display: flex; justify-content: space-between; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .nav button { border: 0; background: none; color: var(--accent); cursor: pointer; font-size: 13px; }
+  .done { text-align: center; padding: 60px 0; font-size: 18px; }
+</style>
+</head>
+<body>
+<main id="app">불러오는 중…</main>
+<script>
+// 판정 화면. 키보드: 1(또는 Y) 맞음 · 0(또는 N) 아님 · U 애매 · ←/→ 이동. 누르면 저장되고 다음으로 넘어간다
+const app = document.getElementById("app");
+let items = [], judged = {}, i = 0;
+
+const key = (it) => `${it.query_id}|${it.store_id}`;
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+async function load() {
+  [items, judged] = await Promise.all([fetch("/items").then((r) => r.json()), fetch("/judgments").then((r) => r.json())]);
+  i = items.findIndex((it) => !judged[key(it)]);   // 판정 안 한 첫 건부터
+  if (i < 0) i = items.length;
+  render();
+}
+
+function render() {
+  const n = Object.keys(judged).filter((k) => items.some((it) => key(it) === k)).length;
+  if (i >= items.length) {
+    app.innerHTML = `<div class="done">다 판정했어요 (${n}/${items.length}).<br><br>채점: <code>python3 scripts/sem_score.py</code></div>`;
+    return;
+  }
+  const it = items[i], cur = judged[key(it)]?.label;
+  app.innerHTML = `
+    <div class="bar"><span>${i + 1} / ${items.length}</span><span>판정함 ${n}</span></div>
+    <div class="progress"><i style="width:${(n / items.length) * 100}%"></i></div>
+    <h1 class="query">“${esc(it.query)}”</h1>
+    <div class="kind">${esc(it.kind)} · ${it.query_id}</div>
+    <p class="guide">이 소개글을 근거로 이 가게가 위 질문에 맞는 곳이라고 말할 수 있나요?<br>
+      소개글에 적힌 것만 보고 판정해요. 실제로는 맞는 가게라도 소개글에 근거가 없으면 <b>아님</b>이에요.</p>
+    <div class="card">
+      <span class="name">${esc(it.name)}</span><span class="sgg">${esc(it.sgg)}</span>
+      <div class="text">${esc(it.text)}</div>
+    </div>
+    <div class="buttons">
+      <button data-v="1" class="${cur === "1" ? "on" : ""}">맞음 <kbd>1</kbd></button>
+      <button data-v="0" class="${cur === "0" ? "on" : ""}">아님 <kbd>0</kbd></button>
+      <button data-v="U" class="${cur === "U" ? "on" : ""}">애매 <kbd>U</kbd></button>
+    </div>
+    <div class="nav"><button id="prev">← 이전</button><button id="next">다음 →</button></div>`;
+  app.querySelectorAll(".buttons button").forEach((b) => (b.onclick = () => judge(b.dataset.v)));
+  document.getElementById("prev").onclick = () => move(-1);
+  document.getElementById("next").onclick = () => move(1);
+}
+
+async function judge(label) {
+  const it = items[i];
+  const res = await fetch("/judge", { method: "POST", body: JSON.stringify({ query_id: it.query_id, store_id: it.store_id, label }) });
+  if (!res.ok) return alert("저장하지 못했어요");
+  judged[key(it)] = { label };
+  move(1);
+}
+
+function move(d) {
+  i = Math.max(0, Math.min(items.length, i + d));
+  render();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey) return;
+  const k = e.key.toUpperCase();
+  if (k === "1" || k === "Y") judge("1");
+  else if (k === "0" || k === "N") judge("0");
+  else if (k === "U") judge("U");
+  else if (e.key === "ArrowLeft") move(-1);
+  else if (e.key === "ArrowRight") move(1);
+});
+
+load();
+</script>
+</body>
+</html>

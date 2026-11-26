@@ -1,0 +1,38 @@
+{
+  "e5-small": {
+    "model": "Xenova/multilingual-e5-small",
+    "dim": 384,
+    "fileMb": 118,
+    "loadMs": 547,
+    "docsPerSec": 48.77315973960942,
+    "queryMsMedian": 1.9,
+    "rssStartMb": 241,
+    "rssServeMb": 614,
+    "rssBatchMb": 1520,
+    "measuredAt": "2026-11-26"
+  },
+  "e5-base": {
+    "model": "Xenova/multilingual-e5-base",
+    "dim": 768,
+    "fileMb": 279,
+    "loadMs": 10139,
+    "docsPerSec": 23.48176185539671,
+    "queryMsMedian": 2.8,
+    "rssStartMb": 235,
+    "rssServeMb": 1050,
+    "rssBatchMb": 1370,
+    "measuredAt": "2026-11-26"
+  },
+  "bge-m3": {
+    "model": "Xenova/bge-m3",
+    "dim": 1024,
+    "fileMb": 570,
+    "loadMs": 18569,
+    "docsPerSec": 7.9940249997948145,
+    "queryMsMedian": 6.5,
+    "rssStartMb": 236,
+    "rssServeMb": 1401,
+    "rssBatchMb": 1184,
+    "measuredAt": "2026-11-26"
+  }
+}
