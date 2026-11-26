@@ -1,0 +1,15 @@
+# 비밀·로컬 상태
+.env
+logs/
+.omc/
+.DS_Store
+
+# 의존성·캐시
+node_modules/
+__pycache__/
+dist/
+
+# 데이터: 원본은 data/README.md 를 보고 다시 받는다. 가공본은 스크립트로 다시 만든다.
+# 정답지(data/labels)는 다시 만들 수 없으므로 올린다.
+data/raw/
+data/processed/
