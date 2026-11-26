@@ -68,6 +68,8 @@ CREATE INDEX stores_geom_idx ON stores USING gist (geom);           -- "이 좌�
 CREATE INDEX stores_tile_idx ON stores USING gist (geom_3857) WHERE cert_count > 0;
 CREATE INDEX stores_cert_idx ON stores (cert_count) WHERE cert_count > 0;  -- 인증 가게만 고를 때
 CREATE INDEX certs_store_idx ON certs (store_id);                   -- 가게 상세 화면에서 인증 목록 찾기
+CREATE INDEX stores_search_idx ON stores USING gin (search_text gin_trgm_ops);  -- 상호 검색 (LIKE '%성심당%')
+CREATE INDEX stores_bldg_idx ON stores (replace(bldg_name, ' ', '')) WHERE bldg_name IS NOT NULL;  -- 장소 검색 ('대전역' = 건물 이름)
 
 -- 5. 다 옮겼으니 staging 을 지우고, 통계를 갱신한다 (Postgres 가 쿼리 계획을 잘 세우도록)
 DROP SCHEMA staging CASCADE;

@@ -10,6 +10,7 @@
 
 CREATE EXTENSION IF NOT EXISTS postgis;   -- 위치: 좌표 자료형, 반경 검색, 공간 색인
 CREATE EXTENSION IF NOT EXISTS vector;    -- 의미 검색: 임베딩 자료형 (5단계에서 열 추가)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;   -- 상호 검색: 글자 3개 묶음(trigram) 색인. 결정 28번
 
 DROP TABLE IF EXISTS certs;
 DROP TABLE IF EXISTS stores;
@@ -20,6 +21,9 @@ CREATE TABLE stores (
     name        text NOT NULL,              -- 상호명 (원래 표기)
     branch      text,                       -- 지점명
     name_norm   text,                       -- 비교·검색용 이름 (normalize.py 의 name_norm). 상호가 '주식회사'뿐이면 다 떼여 빈칸
+    -- 상호 검색용 글자: 상호 + 지점명을 소문자로, 띄어쓰기 없이. '성심당 본점'으로 쳐도 상호 '성심당' + 지점 '본점'이 찾아진다
+    search_text text GENERATED ALWAYS AS
+                    (lower(replace(name || coalesce(branch, ''), ' ', ''))) STORED,
     cat_large   text,                       -- 업종 대분류 ('음식', '소매' …). origin='cert' 는 상가 업종이 없어 빈칸
     cat_mid     text,                       -- 업종 중분류 ('한식', '주점' …)
     cat_small   text,                       -- 업종 소분류 ('국/탕/찌개류' …). 음식은 43종
