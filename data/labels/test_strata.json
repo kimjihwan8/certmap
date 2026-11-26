@@ -1,0 +1,22 @@
+{
+ "same": {
+  "population": 53121,
+  "sampled": 60
+ },
+ "tie": {
+  "population": 933,
+  "sampled": 40
+ },
+ "contain": {
+  "population": 7304,
+  "sampled": 70
+ },
+ "similar": {
+  "population": 4320,
+  "sampled": 70
+ },
+ "none": {
+  "population": 13323,
+  "sampled": 60
+ }
+}

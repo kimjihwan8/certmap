@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>정답지 라벨링</title>
+<style>
+  /* 색은 여기 한 곳에서만 정한다 */
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e2e2dd;
+    --accent: #2f6fdb; --accent-bg: #e8f0fd; --none: #b4432f; --none-bg: #fbeae6; --unsure: #8a6d1d; --unsure-bg: #fbf3dc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --card: #20201e; --text: #ecece8; --muted: #9a9a93; --line: #35352f;
+      --accent: #7aa7f5; --accent-bg: #1f2c44; --none: #f08b74; --none-bg: #3d221c; --unsure: #e2c16a; --unsure-bg: #3a3119;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, "Apple SD Gothic Neo", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 20px 16px 60px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  header h1 { font-size: 17px; margin: 0; }
+  .progress { flex: 1; min-width: 160px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--accent); }
+  .muted { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+  .cert .name { font-size: 20px; font-weight: 700; }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--accent-bg); color: var(--accent); margin-right: 6px; }
+  dl { display: grid; grid-template-columns: 70px 1fr; gap: 2px 10px; margin: 10px 0 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; word-break: break-all; }
+  .links a { color: var(--accent); margin-right: 12px; font-size: 13px; }
+  .cand { display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; font: inherit; color: inherit;
+          background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; cursor: pointer; }
+  .cand:hover { border-color: var(--accent); }
+  .cand.on { border-color: var(--accent); background: var(--accent-bg); }
+  .key { flex: none; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); display: grid; place-items: center; font-size: 13px; color: var(--muted); }
+  .cand .nm { font-weight: 600; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .btn { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+  .btn.none.on { background: var(--none-bg); color: var(--none); border-color: var(--none); }
+  .btn.unsure.on { background: var(--unsure-bg); color: var(--unsure); border-color: var(--unsure); }
+  input[type=text] { font: inherit; width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+  .help { font-size: 13px; }
+  kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>인증 → 상가 정답지</h1>
+    <div class="progress"><div id="bar"></div></div>
+    <span id="count" class="muted"></span>
+  </header>
+  <div id="app" class="muted">불러오는 중…</div>
+  <p class="help muted">
+    <kbd>1</kbd>~<kbd>9</kbd> 같은 가게 · <kbd>N</kbd> 후보 중에 없음 · <kbd>U</kbd> 모르겠음 ·
+    <kbd>←</kbd><kbd>→</kbd> 이전/다음 · <kbd>J</kbd> 안 한 것으로 건너뛰기.
+    고르면 바로 저장되고 다음으로 넘어간다.
+  </p>
+</main>
+<script>
+// 상태: 300건, 지금까지 단 라벨, 지금 보는 위치
+let items = [], labels = {}, pos = 0;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+async function load() {
+  [items, labels] = await Promise.all([fetch("/items").then((r) => r.json()), fetch("/labels").then((r) => r.json())]);
+  // 처음 켜면 아직 안 한 첫 건부터
+  const first = items.findIndex((it) => !labels[it.item_id]);
+  pos = first === -1 ? 0 : first;
+  render();
+}
+
+function render() {
+  const it = items[pos], c = it.cert, cur = labels[it.item_id]?.answer;
+  const done = Object.keys(labels).length;
+  $("bar").style.width = `${(done / items.length) * 100}%`;
+  $("count").textContent = `${pos + 1} / ${items.length} · 완료 ${done}`;
+  // 지도 검색 링크: 상가에 없는 가게인지, 이름이 바뀐 건지 확인할 때 쓴다
+  const q = encodeURIComponent(`${c.name_raw} ${c.addr_raw}`);
+  const more = it.n_cands_total > it.cands.length ? ` (건물 전체 ${it.n_cands_total}곳 중 이름이 비슷한 ${it.cands.length}곳)` : "";
+  $("app").className = "";
+  $("app").innerHTML = `
+    <section class="card cert">
+      <span class="tag">${esc(c.source)}</span>${cur ? '<span class="tag">라벨 있음</span>' : ""}
+      <div class="name">${esc(c.name_raw)} ${c.branch ? `<span class="muted">${esc(c.branch)}</span>` : ""}</div>
+      <dl>
+        <dt>주소</dt><dd>${esc(c.addr_raw)}</dd>
+        ${c.food_raw ? `<dt>업종</dt><dd>${esc(c.food_raw)}</dd>` : ""}
+        ${c.menu ? `<dt>메뉴</dt><dd>${esc(c.menu)}</dd>` : ""}
+        ${c.tel ? `<dt>전화</dt><dd>${esc(c.tel)}</dd>` : ""}
+      </dl>
+      <div class="links" style="margin-top:8px">
+        <a href="https://map.naver.com/p/search/${q}" target="_blank" rel="noopener">네이버 지도</a>
+        <a href="https://map.kakao.com/?q=${q}" target="_blank" rel="noopener">카카오맵</a>
+      </div>
+    </section>
+    <p class="muted">같은 건물의 상가 가게${more} — 인증과 같은 가게는?</p>
+    ${it.cands.map((s, i) => `
+      <button class="cand ${cur === s.store_id ? "on" : ""}" onclick="pick('${s.store_id}')">
+        <span class="key">${i + 1}</span>
+        <span>
+          <span class="nm">${esc(s.name_raw)}</span> ${s.branch_raw ? `<span class="muted">${esc(s.branch_raw)}</span>` : ""}
+          <div class="muted">${esc(s.cat_mid)} · ${esc(s.cat_small)}${s.floor ? ` · ${esc(s.floor)}층` : ""}${s.bldg_name ? ` · ${esc(s.bldg_name)}` : ""}</div>
+        </span>
+      </button>`).join("")}
+    <div class="row">
+      <button class="btn none ${cur === "NONE" ? "on" : ""}" onclick="pick('NONE')">N · 후보 중에 없음</button>
+      <button class="btn unsure ${cur === "UNSURE" ? "on" : ""}" onclick="pick('UNSURE')">U · 모르겠음</button>
+    </div>
+    <p><input id="memo" type="text" placeholder="메모 (선택) — 예: 이름 바뀜, 같은 건물 다른 층, 폐업" value="${esc(labels[it.item_id]?.memo)}"></p>`;
+}
+
+async function pick(answer) {
+  const it = items[pos], memo = $("memo").value;
+  await fetch("/label", { method: "POST", headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ item_id: it.item_id, answer, memo }) });
+  labels[it.item_id] = { answer, memo };
+  if (pos < items.length - 1) pos++;
+  render();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.id === "memo") { if (e.key === "Escape") e.target.blur(); return; }   // 메모 입력 중에는 단축키 끔
+  const it = items[pos];
+  if (!it) return;
+  const n = Number(e.key);
+  if (n >= 1 && n <= it.cands.length) pick(it.cands[n - 1].store_id);
+  else if (e.key === "n" || e.key === "N") pick("NONE");
+  else if (e.key === "u" || e.key === "U") pick("UNSURE");
+  else if (e.key === "ArrowRight" && pos < items.length - 1) { pos++; render(); }
+  else if (e.key === "ArrowLeft" && pos > 0) { pos--; render(); }
+  else if (e.key === "j" || e.key === "J") {
+    const next = items.findIndex((x, i) => i > pos && !labels[x.item_id]);
+    if (next !== -1) { pos = next; render(); }
+  }
+});
+
+load().catch((err) => { $("app").textContent = "불러오기 실패: " + err; });
+</script>
+</body>
+</html>
