@@ -8,11 +8,13 @@
  *   GET /api/find?lat=&lon=&certs=&cats=&q=  조건 검색: 칩으로 고른 조건을 많이 만족하는 순 (JSON)
  *   GET /api/categories       업종 칩 목록 (JSON)
  *   GET /api/parse?q=         자연어 → 칩 (규칙 v0, JSON)
+ *   GET /api/vibe?q=&lat=&lon=&certs=&cats=  의미 검색: 관광공사 소개글에서 + 근거 문장 (JSON)
  */
 import { Hono } from "hono";
 import { CERT_FILTERS, type CertFilter, findStores, getCategories } from "./find.js";
 import { parseQuery } from "./parse.js";
 import { searchPlaces, searchStores } from "./search.js";
+import { searchVibe } from "./vibe.js";
 import { getBuilding, getStore } from "./stores.js";
 import { getTile, isValidTile } from "./tiles.js";
 
@@ -60,7 +62,18 @@ const app = new Hono()
     }), 200);
   })
   .get("/categories", async (c) => c.json(await getCategories(), 200))
-  .get("/parse", async (c) => c.json(await parseQuery((c.req.query("q") ?? "").slice(0, 100)), 200));
+  .get("/parse", async (c) => c.json(await parseQuery((c.req.query("q") ?? "").slice(0, 100)), 200))
+  .get("/vibe", async (c) => {
+    const { q = "", lat, lon, certs = "", cats = "" } = c.req.query();
+    const [la, lo] = [Number(lat), Number(lon)];
+    if (!inKorea(la, lo)) return c.json({ error: "좌표가 한국 밖" }, 400);
+    if (!q.trim()) return c.json({ radius: null, hits: [] }, 200);
+    return c.json(await searchVibe({
+      q: q.slice(0, 50), lat: la, lon: lo,
+      certs: certs.split(",").filter((x): x is CertFilter => (CERT_FILTERS as string[]).includes(x)),
+      cats: cats.split(",").filter((x) => x && x.length <= 30).slice(0, 50),
+    }), 200);
+  });
 
 // 화면이 hc<AppType>() 으로 이 타입을 쓰면, 주소·응답 모양이 서버와 어긋날 때 화면 쪽 타입 검사가 잡아낸다
 export type AppType = typeof app;

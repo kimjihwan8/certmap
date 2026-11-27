@@ -21,6 +21,7 @@ import { type ListItem, StoreList } from "./StoreList";
 import { StorePanel } from "./StorePanel";
 import { useFind } from "./useFind";
 import { useStoreSearch } from "./useStoreSearch";
+import { useVibe, VibeSection } from "./VibeSection";
 
 const START_CENTER = { lat: 36.3324, lon: 127.4342 };   // 대전역 (MapView 의 START 와 같다)
 
@@ -37,6 +38,8 @@ export function App() {
   const [placeName, setPlaceName] = useState<string | null>(null);   // 장소를 골랐으면 그 이름 ('대전역 근처')
   const [parsed, setParsed] = useState<{ text: string; result: ParseResult } | null>(null);   // 마지막 자연어 해석
   const [navigated, setNavigated] = useState(false);   // 방향키로 목록을 골랐는지. 그때만 엔터 = 가게 열기
+  const [vibe, setVibe] = useState("");                 // 의미 검색어 (엔터로 해석한 문장에서 칩으로 못 읽은 말, 결정 37번)
+  const [vibeHover, setVibeHover] = useState<{ lat: number; lon: number } | null>(null);
   const map = useRef<MapLibre | null>(null);
 
   // 상세·건물 목록을 보는 동안에는 지도가 그 가게로 날아가도 목록을 다시 찾지 않는다
@@ -64,6 +67,7 @@ export function App() {
   const nameMode = query.trim() !== "" && !chipsOn;
   const { hits, places, loading: nameLoading } = useStoreSearch(nameMode ? query : "", getCenter);
   const find = useFind({ enabled: !nameMode, certs, cats, q: chipsOn ? query.trim() : "", center });
+  const vibeSearch = useVibe(nameMode ? "" : vibe, center, certs, cats);
 
   // 실패해도 화면이 멈추지 않게, 불러오기는 전부 이 함수를 거친다
   async function load<T>(work: () => Promise<T>): Promise<T | undefined> {
@@ -109,7 +113,8 @@ export function App() {
     const r = await load(() => parseQuery(text));
     if (!r) return;
     setParsed({ text, result: r });
-    if (r.used.length === 0) return;      // 읽은 게 없으면 검색어를 그대로 둔다 (가게 이름일 수 있다)
+    setVibe(r.vibe);
+    if (r.used.length === 0 && !r.vibe) return;   // 읽은 게 없으면 검색어를 그대로 둔다 (가게 이름일 수 있다)
     setCerts(r.certs);
     setCats(r.cats);
     setQuery("");                          // 검색어는 칩·장소로 옮겨졌다. 남겨 두면 이름 거르기로 또 쓰인다
@@ -122,7 +127,10 @@ export function App() {
     setBuilding(null);     // 검색을 시작하면 건물 목록 대신 검색 결과를 보여준다
     setStore(null);
     setActive(0);
-    if (q) setParsed(null);   // 새로 치기 시작하면 지난 해석 표시를 지운다
+    if (q) {
+      setParsed(null);        // 새로 치기 시작하면 지난 해석과 의미 검색을 지운다
+      setVibe("");
+    }
   }
   function clearAll() {
     setQuery("");
@@ -130,6 +138,7 @@ export function App() {
     setCats([]);
     setParsed(null);
     setPlaceName(null);
+    setVibe("");
   }
   // 칩을 바꾸면 결과 목록으로 돌아간다
   useEffect(() => {
@@ -179,12 +188,16 @@ export function App() {
   }
 
   // 지도: 목록의 가게를 찍고, 마우스를 올린 가게를 강조한다 (상세·건물 목록을 볼 때는 숨긴다)
-  const mapResults = useMemo(
-    () => (building || store ? [] : rows.map((r) => ({ storeId: r.storeId, name: r.name, lat: r.lat, lon: r.lon, certified: r.sources.length > 0 }))),
-    [building, store, rows],
-  );
+  const mapResults = useMemo(() => {
+    if (building || store) return [];
+    const list = [...rows, ...(vibeSearch.result?.hits ?? [])];
+    return list.map((r) => ({ storeId: r.storeId, name: r.name, lat: r.lat, lon: r.lon, certified: r.sources.length > 0 }));
+  }, [building, store, rows, vibeSearch.result]);
   const hovered = hover !== null && !building && !store ? rows[hover] : undefined;
-  const highlight = useMemo(() => (hovered ? { lat: hovered.lat, lon: hovered.lon } : null), [hovered]);
+  const highlight = useMemo(
+    () => (vibeHover && !store ? vibeHover : hovered ? { lat: hovered.lat, lon: hovered.lon } : null),
+    [hovered, vibeHover, store],
+  );
   // 같은 가게를 다시 그려도 지도가 또 날아가지 않도록, 가게가 바뀔 때만 새 객체를 만든다
   const selected = useMemo(
     () => (store ? { lat: store.lat, lon: store.lon, label: [store.name, store.branch].filter(Boolean).join(" ") } : null),
@@ -268,6 +281,10 @@ export function App() {
             </>
           ) : (
             <>
+              {vibe && (
+                <VibeSection q={vibe} result={vibeSearch.result} loading={vibeSearch.loading}
+                  onPick={openStore} onHover={setVibeHover} />
+              )}
               <div className="list-head">
                 <div>
                   <div className="title">{head.title}</div>
@@ -295,16 +312,16 @@ function ParsedLine({ text, r, onClose }: { text: string; r: ParseResult; onClos
     <div className="parsed">
       <button className="x" aria-label="닫기" onClick={onClose}>×</button>
       <div className="q">“{text}”</div>
-      {r.used.length === 0 ? (
+      {r.used.length === 0 && !r.vibe ? (
         <div>조건으로 읽을 말이 없어요. 가게 이름이면 목록에서 골라 주세요.</div>
       ) : (
         <div className="read">
           {r.used.map((u) => (
             <span key={u.word}><span className="muted">{u.word}</span> → {label(u.as)}</span>
           ))}
+          {r.vibe && <span><span className="muted">{r.vibe}</span> → 소개글에서 찾기</span>}
         </div>
       )}
-      {r.unknown.length > 0 && <div className="unknown">반영 못 함: {r.unknown.join(", ")} · 공개 데이터에 없는 정보예요</div>}
     </div>
   );
 }

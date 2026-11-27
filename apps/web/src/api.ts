@@ -67,3 +67,14 @@ export async function parseQuery(q: string) {
 }
 
 export type ParseResult = Awaited<ReturnType<typeof parseQuery>>;
+
+/** 의미 검색: 관광공사 소개글에서 "분위기 좋은" 같은 말과 가까운 가게 + 근거 문장 */
+export async function searchVibe(p: { q: string; lat: number; lon: number; certs: CertFilter[]; cats: string[] }) {
+  const res = await client.api.vibe.$get({
+    query: { q: p.q, lat: String(p.lat), lon: String(p.lon), certs: p.certs.join(","), cats: p.cats.join(",") },
+  });
+  if (!res.ok) throw new Error("소개글 검색을 하지 못했어요");
+  return res.json();
+}
+
+export type VibeResult = Awaited<ReturnType<typeof searchVibe>>;

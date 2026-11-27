@@ -78,6 +78,21 @@ button { font: inherit; color: inherit; }
 .parsed .unknown { color: var(--warn); }
 .parsed .x { position: absolute; right: 6px; top: 6px; width: 22px; height: 22px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
 
+/* 소개글로 찾은 곳 (의미 검색) */
+.vibe { margin: 10px 12px 4px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.vibe-head { padding: 10px 12px; background: var(--hover); }
+.vibe-head .title { font-size: 14px; font-weight: 700; }
+.vibe-head .sub { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.vibe ul { margin: 0; padding: 0; list-style: none; }
+.vibe li { padding: 11px 12px; border-top: 1px solid var(--line); cursor: pointer; }
+.vibe li:hover { background: var(--hover); }
+.vibe .title-row { display: flex; align-items: baseline; gap: 6px; }
+.vibe .name { font-size: 15px; font-weight: 700; }
+.vibe .branch { color: var(--muted); font-size: 13px; }
+.vibe .info-row { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.vibe blockquote { margin: 6px 0 0; padding: 2px 0 2px 10px; border-left: 3px solid var(--warn); color: var(--text); font-size: 13px; line-height: 1.55; }
+.vibe-empty { padding: 10px 12px; margin: 0; }
+
 /* 목록 머리말 */
 .list-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px 10px; border-bottom: 1px solid var(--line); }
 .list-head .title { font-size: 14px; font-weight: 700; }

@@ -13,7 +13,8 @@
  *   2'. 사전             단어 안에 사전 낱말이 들어 있으면 그 칩 ('저렴한' ⊃ '저렴', '국밥집' ⊃ '국밥')
  *   3. 장소              '근처·주변·앞'과 조사를 뗀 단어가 상가 건물 이름과 정확히 같으면 장소 (결정 11번)
  *   4. 군말              '근처', '집', '식당'처럼 뜻을 바꾸지 않는 말은 버린다
- *   5. 나머지            반영 못 한 조건. 숨기지 않고 화면에 보여준다
+ *   5. 나머지            의미 검색어(vibe)로 넘긴다. "분위기 좋은" → 관광공사 소개글에서 찾는다 (결정 37번)
+ *                        예전에는 '반영 못 함'으로 버렸다. 의미 검색에서도 못 찾으면 화면이 그렇게 알려준다
  */
 import type { CertFilter } from "./find.js";
 import { type PlaceHit, searchPlaces } from "./search.js";
@@ -59,8 +60,10 @@ const PLACE_SUFFIX = /(근처|주변|인근|부근|앞|쪽|에서|에|의)+$/;
 // '맛집'류: 칩을 켜지 않고 '여러 공공 목록에 실린 가게일수록 위'로 읽는다 (결정 32번).
 // 예전에는 '맛집' → LX 칩이었는데, 그러면 LX 추천만 맛집이 된다 (사용자 지적)
 const POPULAR = ["맛집", "맛있는", "유명", "인기", "추천"];
-// 뜻을 바꾸지 않는 말
-const FILLER = new Set(["근처", "주변", "인근", "부근", "앞", "쪽", "집", "곳", "데", "식당", "음식점", "가게", "좋은", "알려줘", "찾아줘", "어디", "있는", "에서", "곳은"]);
+// 뜻을 바꾸지 않는 말 (버린다)
+const FILLER = new Set(["근처", "주변", "인근", "부근", "앞", "쪽", "집", "곳", "데", "식당", "음식점", "가게", "알려줘", "찾아줘", "어디", "에서", "곳은"]);
+// 혼자서는 뜻이 없지만 앞말을 꾸미는 말. 의미 검색어에는 붙여 둔다 ("분위기 좋은"의 "좋은")
+const SOFT = new Set(["좋은", "있는", "하기", "좋은곳"]);
 
 export interface ParseResult {
   place: PlaceHit | null;
@@ -68,15 +71,18 @@ export interface ParseResult {
   cats: string[];
   popular: boolean;                       // '맛집'류 말이 있었는지 (정렬은 원래 실린 목록 수 순이라 칩은 안 켠다)
   used: { word: string; as: string }[];   // 어느 단어를 무엇으로 읽었는지 (화면에 보여준다)
-  unknown: string[];                      // 반영 못 한 말
+  unknown: string[];                      // 칩·장소로 못 읽은 말
+  vibe: string;                           // 의미 검색어: 못 읽은 말 + 꾸미는 말 ("분위기 좋은"). 없으면 ""
 }
 
 export async function parseQuery(q: string): Promise<ParseResult> {
-  const out: ParseResult = { place: null, certs: [], cats: [], popular: false, used: [], unknown: [] };
+  const out: ParseResult = { place: null, certs: [], cats: [], popular: false, used: [], unknown: [], vibe: "" };
+  const vibeWords: string[] = [];
   const words = q.trim().split(/\s+/).filter(Boolean).slice(0, 12);
   for (const word of words) {
     if (NOT_A_CHIP.some((n) => word.includes(n))) {
       out.unknown.push(word);
+      vibeWords.push(word);
       continue;
     }
     if (POPULAR.some((w) => word.includes(w))) {
@@ -93,6 +99,10 @@ export async function parseQuery(q: string): Promise<ParseResult> {
       continue;
     }
     if (FILLER.has(word)) continue;
+    if (SOFT.has(word)) {
+      vibeWords.push(word);
+      continue;
+    }
     if (!out.place) {
       const bare = word.replace(PLACE_SUFFIX, "");
       const places = bare.length >= 2 ? await searchPlaces(bare) : [];
@@ -103,6 +113,9 @@ export async function parseQuery(q: string): Promise<ParseResult> {
       }
     }
     out.unknown.push(word);
+    vibeWords.push(word);
   }
+  // 꾸미는 말만 남았으면("좋은") 찾을 게 없다. 못 읽은 말이 하나라도 있어야 의미 검색을 한다
+  if (out.unknown.length) out.vibe = vibeWords.join(" ");
   return out;
 }

@@ -13,6 +13,9 @@ importers:
       '@hono/node-server':
         specifier: ^2.1.11
         version: 2.1.11(hono@4.13.22)
+      '@restaurant-map/embed':
+        specifier: workspace:*
+        version: link:../../packages/embed
       hono:
         specifier: ^4.13.22
         version: 4.13.22

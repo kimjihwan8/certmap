@@ -13,7 +13,7 @@
 import { pool } from "./db.js";
 
 // 칩 이름 → SQL 조건. 칩 이름은 이 목록에 있는 것만 받는다 (요청 글자를 SQL 에 그대로 넣지 않으려고)
-const CERT_SQL = {
+export const CERT_SQL = {
   good_price: "s.good_price",
   baengnyeon: "s.baengnyeon",
   mobum: "s.mobum",
