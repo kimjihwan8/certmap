@@ -97,9 +97,10 @@ CREATE TABLE tour_details (
 );
 
 -- 의미 검색용 문서: 가게 1곳 = 1행. 지금은 관광공사 소개글이 있는 가게만 (결정 24번)
--- embedding 은 db:embed (packages/db/src/embed.ts) 가 채운다. 모델은 packages/embed 와 같아야 한다 (384차원)
+-- embedding 은 db:embed (packages/db/src/embed.ts) 가 채운다. 길이는 packages/embed 의 DEFAULT_MODEL 과 같아야 한다
+-- (bge-m3 = 1024차원, 결정 37번)
 CREATE TABLE store_texts (
     store_id    text PRIMARY KEY REFERENCES stores,
     text        text NOT NULL,              -- 임베딩한 글자 그대로 (가게 이름 + 메뉴 + 소개글)
-    embedding   vector(384)
+    embedding   vector(1024)
 );

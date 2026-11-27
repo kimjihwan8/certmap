@@ -7,11 +7,16 @@
  *   1. 아직 벡터가 없는 문서를 BATCH 개씩 꺼내 임베딩한다 (packages/embed — 서버 검색과 같은 모델)
  *   2. 다 채우면 HNSW 색인을 만든다. 색인이 없으면 검색할 때마다 모든 벡터와 거리를 재야 한다
  */
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import pg from "pg";
-import { EMBED_MODEL, embedPassages, toVectorLiteral } from "@restaurant-map/embed";
+import { DEFAULT_MODEL, EMBED_MODEL, embedPassages, toVectorLiteral } from "@restaurant-map/embed";
 
 const DATABASE_URL = process.env.DATABASE_URL ?? "postgres://map:map@127.0.0.1:5432/restaurant_map";
-const BATCH = 32;          // 한 번에 임베딩할 문서 수. 너무 크면 메모리를 많이 쓰고, 너무 작으면 느리다
+const BATCH = 16;          // 한 번에 임베딩할 문서 수. 너무 크면 메모리를 많이 쓰고, 너무 작으면 느리다
+// 비교 실험(sem_pool)이 저장해 둔 문서 벡터. 문서가 그대로면 다시 계산하지 않는다 (bge-m3 는 974곳에 2분)
+const CACHE = join(import.meta.dirname, "..", "..", "..", "data", "processed", `vectors_${DEFAULT_MODEL}.json`);
 
 async function main() {
   const db = new pg.Client({ connectionString: DATABASE_URL });
@@ -21,10 +26,15 @@ async function main() {
       "SELECT store_id, text FROM store_texts WHERE embedding IS NULL ORDER BY store_id",
     );
     console.log(`문서 ${rows.length.toLocaleString()}개 임베딩 (${EMBED_MODEL})`);
+    // 저장본은 sem_pool 이 store_id 순서로 만든 것. 문서 목록과 글자 길이가 똑같을 때만 쓴다
+    const cache = existsSync(CACHE) ? JSON.parse(await readFile(CACHE, "utf8")) : null;
+    const signature = rows.map((r) => `${r.store_id}:${r.text.length}`).join("|");
+    const cached: number[][] | null = cache?.signature === signature ? cache.vectors : null;
+    if (cached) console.log("  저장해 둔 벡터를 쓴다");
     const started = Date.now();
     for (let i = 0; i < rows.length; i += BATCH) {
       const batch = rows.slice(i, i + BATCH);
-      const vectors = await embedPassages(batch.map((r) => r.text));
+      const vectors = cached ? cached.slice(i, i + BATCH) : await embedPassages(batch.map((r) => r.text));
       // 한 번에 여러 행을 고친다: unnest 로 (번호 목록, 벡터 목록)을 표처럼 펼쳐 붙인다
       await db.query(
         `UPDATE store_texts t SET embedding = v.e::vector

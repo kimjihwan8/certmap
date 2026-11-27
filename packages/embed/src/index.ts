@@ -28,7 +28,9 @@ export const MODELS = {
 } satisfies Record<string, ModelSpec>;
 
 export type ModelKey = keyof typeof MODELS;
-export const DEFAULT_MODEL: ModelKey = "e5-small";
+// 서비스 모델: bge-m3. AI 판정자 3명의 다수결 시험지로 정밀도@5 가 e5-small 52% → bge-m3 62% (결정 37번).
+// 대신 서버 메모리가 614MB → 1.4GB 로 커진다. 바꾸면 DB 벡터 열 길이(schema.sql 의 vector(1024))도 같이 바꿔야 한다
+export const DEFAULT_MODEL: ModelKey = "bge-m3";
 // 예전 이름 (DB 채우기·서버가 쓰는 기본 모델)
 export const EMBED_MODEL = MODELS[DEFAULT_MODEL].id;
 export const EMBED_DIM = MODELS[DEFAULT_MODEL].dim;
